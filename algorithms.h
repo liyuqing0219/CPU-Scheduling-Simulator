@@ -1,6 +1,8 @@
 #include<stdio.h>
 #include<string.h>
 #include<stdlib.h>
+
+
 //-----------DS---------------
 
 int pro_count;
@@ -17,7 +19,7 @@ typedef struct
     int burst;
     int level;
 }pro;
-pro *pros=(pro*)malloc(pro_count*sizeof(pro));
+pro *pros;
 
 
 typedef struct 
@@ -30,10 +32,58 @@ typedef struct
 }metrics;
 
 int timeS;
-int* finish=(int *)malloc(pro_count*sizeof(int));
-int* turnAround=(int *)malloc(pro_count*sizeof(int));
-int* waiting=(int *)malloc(pro_count*sizeof(int));
-int* respond=(int *)malloc(pro_count*sizeof(int));
+int* finish;
+int* turnAround;
+int* waiting;
+int* respond;
+//------------queue tools-----------
+typedef struct 
+{
+    int p;
+    node* next;
+}node;
+typedef struct 
+{
+    node* head;
+    node* tail;
+
+}queue;
+
+//putin
+void push(queue* q,int pro)
+{
+
+    node* new=(node*)malloc(sizeof(node));
+    new->p=pro;
+    new->next=NULL;
+    if(q->tail==NULL)
+    {
+        q->head=&new;
+        q->tail=&new;
+    }
+    else
+    {
+        q->tail->next=&new;
+        q->tail=q->tail->next;
+    }
+    
+}
+//delete
+int delete(queue* q)
+{
+    if(q->head==NULL)
+    {
+        printf("something wrong");
+        exit(1);
+    }
+    int r=q->head->p;
+    node* t=q->head;
+    q->head=q->head->next;
+    free(t);
+    
+}
+
+
 //--------algorithm--------------
 void swapP(int i,int j)
 {
@@ -121,13 +171,23 @@ double cal_avWait()
 {
     return (getTurnSum()-getBurstSum())/pro_count;
 }
-void setMetric()
+/*int jobTh;
+    int CPU_Uti;
+    int avTurnaround;
+    int avRespond;
+    int avWaiting;*/
+void setMetric(metrics *m)
 {
-    
+    m->jobTh=cal_JobTh();
+    m->avTurnaround=cal_avTurn();
+    m->CPU_Uti=cal_CPUuti();
+    m->avWaiting=cal_avWait();
+    m->avRespond=cal_avRes();
 }
-void printMetric()
+void printMetric(const metrics m)
 {
-
+    fprintf("Job Throughput :%f\nCPU Utilization :%f\nAverage Turnaround Time :%f\nAverage Response Time :%f\nAverage Waiting Time :%f\n----------------------------------------------------------------------------------------\n",m.jobTh,m.CPU_Uti,m.avTurnaround,m.avRespond,m.avWaiting);
+   
 }
 void FCFS()
 {
@@ -286,12 +346,100 @@ void SJF()
     }
     
 }
-void RR()
+void RR(int timeClip)
+{
+    int* store=(int*)malloc(pro_count*sizeof(int));
+    for(int i=0;i<pro_count;i++)
+    {
+        store[i]=0;
+    }
+    int time=pros[0].arrTime;
+    int sumTime=0;
+    int *surTime=(int*)malloc(pro_count*sizeof(int));
+     for(int i=0;i<pro_count;i++)
+    {
+        sumTime+=pros[i].burst;
+        surTime[i]=pros[i].burst;
+    }
+    queue l;
+        
+    for(int i=0;i<pro_count;i++)
+    {
+         push(&l,i);
+    }
+    while(surTime>0)
+    {
+        int cu=delete(&l);
+        if(surTime[cu]==pros[cu].burst)
+        {
+            respond[cu]=time-pros[cu].arrTime;
+        }
+        
+        if(surTime[cu]<=timeClip)
+        {
+            sumTime-=surTime[cu];
+            time+=surTime[cu];
+            surTime[cu]=0;
+            finish[cu]=time;
+        }
+        else
+        {
+            sumTime-=timeClip;
+            time+=timeClip;
+            surTime[cu]-=timeClip;
+            push(&l,cu);
+
+        }
+
+    }
+}
+void aging(int* age,int clip)
 {
 
 }
 void prioritySch()
 {
+    int* age=(int*)malloc(pro_count*sizeof(int));
+    int time=pros[0].arrTime;
+    int* surTime=(int*)malloc(pro_count*sizeof(int));
+    int sumTime=0;
+    for(int i=0;i<pro_count;i++)
+    {
+        sumTime+=pros[i].burst;
+        surTime[i]=pros[i].burst;
+    }
+    
+    while(surTime!=0)
+    {
+        int cu=-1;
+        for(int i=0;i<pro_count;i++)
+        {
+            if(pros[i].arrTime>time)break;
+            if(surTime[i]==0)continue;
+            if(cu==-1)
+            {
+                cu=i;
+            }
+            else{
+                if(pros[i].level<pros[cu].level)
+                {
+                    cu=-1;
+                }
+            }
+        }
+        if(pros[cu].burst==surTime[cu])
+        {
+            respond[cu]=time;
+        }
+        time+=1;
+        surTime[cu]-=1;
+        sumTime-=1;
+        if(surTime[cu]==0)
+        {
+            finish[cu]=time;
+        }
 
+    }
+          
 }
 
